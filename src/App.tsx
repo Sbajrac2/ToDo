@@ -22,12 +22,14 @@ const App = () => {
     title: '',
     description: '',
     deadline: '',
+    subtasks: [],
   });
 
   const [editFormData, setEditFormData] = useState({
     title: '',
     description: '',
     deadline: '',
+    subtasks: [],
   });
 
   // Calculate task urgency color
@@ -61,7 +63,7 @@ const App = () => {
     };
 
     setTasks([task, ...tasks]);
-    setNewTask({ title: '', description: '', deadline: '' });
+    setNewTask({ title: '', description: '', deadline: '', subtasks: [] });
     setIsAdding(false);
   };
 
@@ -71,6 +73,7 @@ const App = () => {
       title: task.title,
       description: task.description,
       deadline: task.deadline,
+      subtasks: task.subtasks || [],
     });
   };
 
@@ -85,6 +88,37 @@ const App = () => {
 
   const toggleComplete = (id) => {
     setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  };
+
+  const addSubtask = (taskId, subtaskTitle) => {
+    if (!subtaskTitle.trim()) return;
+    setTasks(tasks.map(t => 
+      t.id === taskId 
+        ? { ...t, subtasks: [...(t.subtasks || []), { id: crypto.randomUUID(), title: subtaskTitle, completed: false }] }
+        : t
+    ));
+  };
+
+  const deleteSubtask = (taskId, subtaskId) => {
+    setTasks(tasks.map(t => 
+      t.id === taskId 
+        ? { ...t, subtasks: (t.subtasks || []).filter(st => st.id !== subtaskId) }
+        : t
+    ));
+  };
+
+  const toggleSubtask = (taskId, subtaskId) => {
+    setTasks(tasks.map(t => 
+      t.id === taskId 
+        ? { 
+            ...t, 
+            subtasks: (t.subtasks || []).map(st => 
+              st.id === subtaskId ? { ...st, completed: !st.completed } : st
+            ),
+            completed: (t.subtasks || []).every(st => st.id === subtaskId ? !st.completed : st.completed) // auto-complete task if all subtasks done
+          }
+        : t
+    ));
   };
 
   // Drag and Drop Logic
@@ -173,6 +207,38 @@ const App = () => {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Sub-tasks</label>
+                {newTask.subtasks.map((st, idx) => (
+                  <div key={st.id} className="flex items-center gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={st.title}
+                      onChange={(e) => {
+                        const updated = [...newTask.subtasks];
+                        updated[idx].title = e.target.value;
+                        setNewTask({...newTask, subtasks: updated});
+                      }}
+                      className="flex-1 text-sm border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-300"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setNewTask({...newTask, subtasks: newTask.subtasks.filter((_, i) => i !== idx)})}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setNewTask({...newTask, subtasks: [...newTask.subtasks, { id: crypto.randomUUID(), title: '', completed: false }]})}
+                  className="text-indigo-600 hover:text-indigo-800 text-sm"
+                >
+                  + Add Sub-task
+                </button>
+              </div>
+
               <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-2">
                 <div className="flex-1">
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Deadline</label>
@@ -224,6 +290,37 @@ const App = () => {
                         value={editFormData.description}
                         onChange={(e) => setEditFormData({...editFormData, description: e.target.value})}
                       />
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Sub-tasks</label>
+                        {editFormData.subtasks.map((st, idx) => (
+                          <div key={st.id} className="flex items-center gap-2 mb-2">
+                            <input
+                              type="text"
+                              value={st.title}
+                              onChange={(e) => {
+                                const updated = [...editFormData.subtasks];
+                                updated[idx].title = e.target.value;
+                                setEditFormData({...editFormData, subtasks: updated});
+                              }}
+                              className="flex-1 text-sm border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-300"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setEditFormData({...editFormData, subtasks: editFormData.subtasks.filter((_, i) => i !== idx)})}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => setEditFormData({...editFormData, subtasks: [...editFormData.subtasks, { id: crypto.randomUUID(), title: '', completed: false }]})}
+                          className="text-indigo-600 hover:text-indigo-800 text-sm"
+                        >
+                          + Add Sub-task
+                        </button>
+                      </div>
                       <div className="flex flex-col sm:flex-row gap-3 items-end pt-2 border-t border-slate-50">
                         <div className="flex-1 w-full">
                           <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Deadline</label>
@@ -313,6 +410,24 @@ const App = () => {
                         <div className="mt-2 flex items-start gap-2 text-sm opacity-80">
                           <AlignLeft size={14} className="mt-1 flex-shrink-0" />
                           <p className="line-clamp-2">{task.description}</p>
+                        </div>
+                      )}
+
+                      {task.subtasks && task.subtasks.length > 0 && (
+                        <div className="mt-2 text-sm opacity-80">
+                          <ul className="list-none pl-0">
+                            {task.subtasks.map(st => (
+                              <li key={st.id} className="flex items-center gap-2 mb-1">
+                                <button 
+                                  onClick={() => toggleSubtask(task.id, st.id)}
+                                  className="flex-shrink-0"
+                                >
+                                  {st.completed ? <CheckCircle2 size={14} className="text-indigo-500" /> : <Circle size={14} className="text-slate-300" />}
+                                </button>
+                                <span className={st.completed ? 'line-through text-slate-400' : ''}>{st.title}</span>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       )}
 
